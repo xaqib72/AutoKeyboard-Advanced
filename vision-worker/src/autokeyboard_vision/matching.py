@@ -152,3 +152,60 @@ def match_template(
         "width": int(best_size[0]),
         "height": int(best_size[1]),
     }
+
+
+def match_rotated_shape(
+    image_path: str,
+    source_region: dict[str, int],
+    target_region: dict[str, int],
+    threshold: float = 0.45,
+) -> dict[str, int | float | bool]:
+    """Find a screen-captured shape in a candidate region, allowing quarter turns."""
+    if not 0.1 <= threshold <= 1.0:
+        raise ValueError("threshold must be between 0.1 and 1")
+    image = _read_image(image_path, cv2.IMREAD_GRAYSCALE, "screen image")
+
+    def bounds(region: dict[str, int], description: str) -> tuple[int, int, int, int]:
+        try:
+            x, y = int(region["x"]), int(region["y"])
+            width, height = int(region["width"]), int(region["height"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise InvalidImageError(f"Invalid {description} rectangle") from error
+        if x < 0 or y < 0 or width < 3 or height < 3 or x + width > image.shape[1] or y + height > image.shape[0]:
+            raise InvalidImageError(f"{description.capitalize()} rectangle is outside the screen image")
+        return x, y, width, height
+
+    sx, sy, sw, sh = bounds(source_region, "source")
+    tx, ty, tw, th = bounds(target_region, "target")
+    source = image[sy : sy + sh, sx : sx + sw]
+    target = image[ty : ty + th, tx : tx + tw]
+    source_edges = cv2.Canny(cv2.GaussianBlur(source, (3, 3), 0), 45, 135)
+    target_edges = cv2.Canny(cv2.GaussianBlur(target, (3, 3), 0), 45, 135)
+    if cv2.countNonZero(source_edges) < 6:
+        raise InvalidImageError("Moving shape area has too few visible edges; select a tighter area")
+
+    best: tuple[float, int, int, int, int, int] | None = None
+    for quarter_turns in range(4):
+        candidate = np.ascontiguousarray(np.rot90(source_edges, quarter_turns))
+        height, width = candidate.shape[:2]
+        if width > tw or height > th:
+            continue
+        scores = cv2.matchTemplate(target_edges, candidate, cv2.TM_CCOEFF_NORMED)
+        scores = np.nan_to_num(scores, nan=-1.0, posinf=-1.0, neginf=-1.0)
+        _minimum, maximum, _minimum_location, location = cv2.minMaxLoc(scores)
+        result = (float(maximum), quarter_turns * 90, tx + location[0], ty + location[1], width, height)
+        if best is None or result[0] > best[0]:
+            best = result
+
+    if best is None:
+        return {"found": False, "confidence": 0.0, "x": 0, "y": 0, "width": sw, "height": sh, "rotation": 0}
+    confidence, rotation, x, y, width, height = best
+    return {
+        "found": confidence >= threshold,
+        "confidence": confidence,
+        "x": x,
+        "y": y,
+        "width": width,
+        "height": height,
+        "rotation": rotation,
+    }

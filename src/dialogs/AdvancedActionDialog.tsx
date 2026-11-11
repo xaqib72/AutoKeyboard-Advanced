@@ -98,6 +98,48 @@ export function AdvancedActionDialog({
       setMessage(String(error));
     }
   };
+  const selectPuzzleRegion = async (field: "sourceRegion" | "targetRegion") => {
+    if (!isTauri()) {
+      setMessage("Screen area selection is available in the desktop app.");
+      return;
+    }
+    setMessage("Click all four corners of the selected game area. Press Esc to cancel.");
+    try {
+      const region = await backend.captureRegion();
+      if (action.type === "solve_shape_slider") {
+        update({ params: { ...action.params, [field]: region } } as Partial<AdvancedAction>);
+        setMessage(`Selected ${region.width} × ${region.height} at ${region.x}, ${region.y}`);
+      }
+    } catch (error) {
+      setMessage(String(error));
+    }
+  };
+  const capturePuzzleSlider = async () => {
+    if (!isTauri()) {
+      setMessage("Slider coordinate capture is available in the desktop app.");
+      return;
+    }
+    if (action.type !== "solve_shape_slider") return;
+    setMessage("Click the slider thumb center at its start, then at its end. Press Esc to cancel.");
+    try {
+      const points = await backend.captureSwipePoints();
+      if (Math.abs(points.startY - points.endY) > 12) {
+        setMessage("Both slider points must be on the same horizontal track. Capture them again.");
+        return;
+      }
+      update({
+        params: {
+          ...action.params,
+          sliderStartX: points.startX,
+          sliderEndX: points.endX,
+          sliderY: points.startY,
+        },
+      } as Partial<AdvancedAction>);
+      setMessage(`Captured slider: start X ${points.startX}, end X ${points.endX}, Y ${points.startY}`);
+    } catch (error) {
+      setMessage(String(error));
+    }
+  };
   const testCondition = async () => {
     const testableCondition: ConditionExpression | undefined =
       condition ??
@@ -497,6 +539,78 @@ export function AdvancedActionDialog({
             />
           </>
         )}
+        {action.type === "solve_shape_slider" && (
+          <>
+            <p className="hint">
+              For your own local game: capture a tight rectangle around the moving shape and another
+              around its candidate cutouts. Matching checks the shape in all four quarter-turns.
+            </p>
+            <ImageRegionEditor
+              region={action.params.sourceRegion}
+              label="Moving shape area"
+              onChange={(region) => update({ params: { ...action.params, sourceRegion: region } } as Partial<AdvancedAction>)}
+              onSelect={() => void selectPuzzleRegion("sourceRegion")}
+            />
+            <ImageRegionEditor
+              region={action.params.targetRegion}
+              label="Candidate target area"
+              onChange={(region) => update({ params: { ...action.params, targetRegion: region } } as Partial<AdvancedAction>)}
+              onSelect={() => void selectPuzzleRegion("targetRegion")}
+            />
+            <div className="coordinate-grid">
+              <label>
+                Slider start X
+                <NumberInput
+                  value={action.params.sliderStartX}
+                  onChange={(e) => update({ params: { ...action.params, sliderStartX: Number(e.target.value) } } as Partial<AdvancedAction>)}
+                />
+              </label>
+              <label>
+                Slider end X
+                <NumberInput
+                  value={action.params.sliderEndX}
+                  onChange={(e) => update({ params: { ...action.params, sliderEndX: Number(e.target.value) } } as Partial<AdvancedAction>)}
+                />
+              </label>
+            </div>
+            <button type="button" onClick={() => void capturePuzzleSlider()}>
+              Get Slider Coordinates
+            </button>
+            <p className="hint">
+              The app minimizes. Click the slider thumb center at its starting position, then at its end position.
+            </p>
+            <div className="coordinate-grid">
+              <label>
+                Slider Y
+                <NumberInput
+                  value={action.params.sliderY}
+                  onChange={(e) => update({ params: { ...action.params, sliderY: Number(e.target.value) } } as Partial<AdvancedAction>)}
+                />
+              </label>
+              <label>
+                Shape similarity (0.1–1)
+                <NumberInput
+                  min={0.1}
+                  max={1}
+                  step={0.01}
+                  value={action.params.threshold}
+                  onChange={(e) => update({ params: { ...action.params, threshold: Number(e.target.value) } } as Partial<AdvancedAction>)}
+                />
+              </label>
+            </div>
+            <Field label="Slider drag duration (ms):">
+              <NumberInput
+                min={100}
+                max={10000}
+                value={action.params.dragDurationMs}
+                onChange={(e) => update({ params: { ...action.params, dragDurationMs: Number(e.target.value) } } as Partial<AdvancedAction>)}
+              />
+            </Field>
+            <p className="hint">
+              The captured game areas must be visible on the same screen when this action runs.
+            </p>
+          </>
+        )}
         {condition && (
           <ConditionEditor
             value={condition}
@@ -570,7 +684,7 @@ export function AdvancedActionDialog({
           </>
         )}
         {message && (
-          <p className={message.startsWith("PASS") ? "inline-success" : "inline-error"}>
+          <p className={message.startsWith("PASS") || message.startsWith("Captured") ? "inline-success" : "inline-error"}>
             {message}
           </p>
         )}

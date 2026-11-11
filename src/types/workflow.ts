@@ -184,6 +184,18 @@ export type FindImageClickAction = ActionBase<
     region?: { x: number; y: number; width: number; height: number };
   }
 >;
+export type SolveShapeSliderAction = ActionBase<
+  "solve_shape_slider",
+  {
+    sourceRegion?: { x: number; y: number; width: number; height: number };
+    targetRegion?: { x: number; y: number; width: number; height: number };
+    sliderStartX: number;
+    sliderEndX: number;
+    sliderY: number;
+    threshold: number;
+    dragDurationMs: number;
+  }
+>;
 export type CommentAction = ActionBase<"comment", { text: string }>;
 
 export type WorkflowAction =
@@ -204,6 +216,7 @@ export type WorkflowAction =
   | JumpAction
   | WindowAction
   | FindImageClickAction
+  | SolveShapeSliderAction
   | CommentAction;
 
 export interface Workflow {

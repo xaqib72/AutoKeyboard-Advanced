@@ -310,6 +310,31 @@ export function validateWorkflow(workflow: Workflow): ValidationIssue[] {
             message: `Image timeout jump row must be between 1 and ${workflow.actions.length}.`,
           });
         break;
+      case "solve_shape_slider": {
+        const regions = [action.params.sourceRegion, action.params.targetRegion];
+        if (regions.some((region) => !region || region.width < 3 || region.height < 3))
+          issues.push({
+            actionId: action.id,
+            actionIndex: row,
+            code: "INVALID_SHAPE_REGIONS",
+            message: "Shape slider needs source and target areas at least 3 × 3 pixels.",
+          });
+        if (
+          action.params.threshold < 0.1 ||
+          action.params.threshold > 1 ||
+          action.params.sliderStartX === action.params.sliderEndX ||
+          action.params.dragDurationMs < 100 ||
+          action.params.dragDurationMs > 10000
+        )
+          issues.push({
+            actionId: action.id,
+            actionIndex: row,
+            code: "INVALID_SHAPE_SLIDER",
+            message:
+              "Shape similarity must be 0.1–1, slider endpoints must differ, and drag duration must be 100–10000 ms.",
+          });
+        break;
+      }
       default:
         break;
     }

@@ -42,6 +42,18 @@ pub struct MatchResult {
     pub height: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShapeMatchResult {
+    pub found: bool,
+    pub confidence: f64,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub rotation: u16,
+}
+
 impl Default for VisionWorker {
     fn default() -> Self {
         Self {
@@ -71,6 +83,63 @@ impl VisionWorker {
         let response = self.request("match_template", request).await;
         let _ = tokio::fs::remove_file(&capture.path).await;
         let mut result: MatchResult = serde_json::from_value(response?)?;
+        result.x += capture.origin_x;
+        result.y += capture.origin_y;
+        Ok(result)
+    }
+
+    pub async fn match_rotated_shape(
+        &self,
+        source: (i32, i32, u32, u32),
+        target: (i32, i32, u32, u32),
+        threshold: f64,
+    ) -> AppResult<ShapeMatchResult> {
+        if !(0.1..=1.0).contains(&threshold) {
+            return Err(AppError::coded(
+                "INVALID_SHAPE_MATCH",
+                "Shape similarity must be between 0.1 and 1.",
+            ));
+        }
+        let source_right = source.0.saturating_add(source.2.min(i32::MAX as u32) as i32);
+        let source_bottom = source.1.saturating_add(source.3.min(i32::MAX as u32) as i32);
+        let target_right = target.0.saturating_add(target.2.min(i32::MAX as u32) as i32);
+        let target_bottom = target.1.saturating_add(target.3.min(i32::MAX as u32) as i32);
+        let left = source.0.min(target.0);
+        let top = source.1.min(target.1);
+        let right = source_right.max(target_right);
+        let bottom = source_bottom.max(target_bottom);
+        if right <= left || bottom <= top {
+            return Err(AppError::coded(
+                "INVALID_REGION",
+                "Shape and target regions must be positive screen rectangles.",
+            ));
+        }
+        let capture_region = (
+            left,
+            top,
+            u32::try_from(right - left).map_err(|_| AppError::coded("INVALID_REGION", "Capture area is too wide."))?,
+            u32::try_from(bottom - top).map_err(|_| AppError::coded("INVALID_REGION", "Capture area is too tall."))?,
+        );
+        let capture = tokio::task::spawn_blocking(move || capture_screen(Some(capture_region)))
+            .await
+            .map_err(|error| AppError::coded("CAPTURE_FAILED", error.to_string()))??;
+        let relative_region = |region: (i32, i32, u32, u32)| {
+            json!({
+                "x": region.0 - capture.origin_x,
+                "y": region.1 - capture.origin_y,
+                "width": region.2,
+                "height": region.3,
+            })
+        };
+        let request = json!({
+            "imagePath": capture.path,
+            "sourceRegion": relative_region(source),
+            "targetRegion": relative_region(target),
+            "threshold": threshold,
+        });
+        let response = self.request("match_rotated_shape", request).await;
+        let _ = tokio::fs::remove_file(&capture.path).await;
+        let mut result: ShapeMatchResult = serde_json::from_value(response?)?;
         result.x += capture.origin_x;
         result.y += capture.origin_y;
         Ok(result)

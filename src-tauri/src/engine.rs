@@ -758,6 +758,61 @@ async fn execute_basic(
                     control.sleep(poll).await?;
                 }
             }
+            "solve_shape_slider" => {
+                let source = named_region(&action.params, "sourceRegion").ok_or_else(|| {
+                    AppError::coded("INVALID_REGION", "Select the moving shape area first.")
+                })?;
+                let target = named_region(&action.params, "targetRegion").ok_or_else(|| {
+                    AppError::coded("INVALID_REGION", "Select the candidate target area first.")
+                })?;
+                control.wait_ready().await?;
+                let result = vision
+                    .match_rotated_shape(source, target, f64_param(action, "threshold", 0.45))
+                    .await?;
+                if !result.found {
+                    return Err(AppError::coded(
+                        "SHAPE_NOT_FOUND",
+                        format!(
+                            "No matching shape was found (best similarity {:.1}%).",
+                            result.confidence * 100.0
+                        ),
+                    ));
+                }
+                let source_center_x = source.0 + source.2 as i32 / 2;
+                let target_center_x = result.x + result.width as i32 / 2;
+                let start_x = i64_param(action, "sliderStartX", 0) as i32;
+                let end_x = i64_param(action, "sliderEndX", 0) as i32;
+                let destination_x = start_x + (target_center_x - source_center_x);
+                if destination_x < start_x.min(end_x) || destination_x > start_x.max(end_x) {
+                    return Err(AppError::coded(
+                        "SLIDER_TARGET_OUT_OF_RANGE",
+                        format!(
+                            "Matching shape is outside the slider travel range: X={destination_x}."
+                        ),
+                    ));
+                }
+                let start = native::resolve_coordinate(
+                    start_x,
+                    i64_param(action, "sliderY", 0) as i32,
+                    "virtual_screen",
+                    "",
+                )?;
+                let end = native::resolve_coordinate(
+                    destination_x,
+                    i64_param(action, "sliderY", 0) as i32,
+                    "virtual_screen",
+                    "",
+                )?;
+                execute_swipe(
+                    control,
+                    input,
+                    start,
+                    end,
+                    "left",
+                    u64_param(action, "dragDurationMs", 700),
+                )
+                .await?;
+            }
             _ => {
                 return Err(AppError::coded(
                     "UNKNOWN_ACTION",
@@ -1454,6 +1509,21 @@ fn image_region(value: &Value) -> Option<(i32, i32, u32, u32)> {
             height,
         )
     })
+}
+
+fn named_region(value: &Value, key: &str) -> Option<(i32, i32, u32, u32)> {
+    let region = value.get(key)?;
+    let width = region.get("width")?.as_u64()?;
+    let height = region.get("height")?.as_u64()?;
+    if width == 0 || height == 0 || width > i32::MAX as u64 || height > i32::MAX as u64 {
+        return None;
+    }
+    let x = region.get("x")?.as_i64()?;
+    let y = region.get("y")?.as_i64()?;
+    if x < i32::MIN as i64 || x > i32::MAX as i64 || y < i32::MIN as i64 || y > i32::MAX as i64 {
+        return None;
+    }
+    Some((x as i32, y as i32, width as u32, height as u32))
 }
 
 #[allow(clippy::too_many_arguments)]

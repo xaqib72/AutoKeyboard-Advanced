@@ -7,9 +7,9 @@ from typing import Any
 
 try:
     from . import __version__
-    from .matching import InvalidImageError, match_template
+    from .matching import InvalidImageError, match_rotated_shape, match_template
 except ImportError:  # Direct-file execution in Tauri development mode.
-    from matching import InvalidImageError, match_template
+    from matching import InvalidImageError, match_rotated_shape, match_template
 
     __version__ = "1.0.0"
 
@@ -35,6 +35,13 @@ def handle(request: dict[str, Any]) -> Any:
             template_path=str(params.get("templatePath", "")),
             threshold=float(params.get("threshold", 0.9)),
             grayscale=bool(params.get("grayscale", False)),
+        )
+    if method == "match_rotated_shape":
+        return match_rotated_shape(
+            image_path=str(params.get("imagePath", "")),
+            source_region=params.get("sourceRegion") or {},
+            target_region=params.get("targetRegion") or {},
+            threshold=float(params.get("threshold", 0.45)),
         )
     raise ValueError(f"Unknown method: {method}")
 

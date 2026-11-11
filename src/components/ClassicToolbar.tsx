@@ -122,6 +122,7 @@ export function ClassicToolbar(props: Props) {
             ["jump", "Jump"],
             ["window", "Window"],
             ["find_image_click", "Image Click"],
+            ["solve_shape_slider", "Shape Slider"],
             ["comment", "Comment"],
           ] as Array<[WorkflowAction["type"], string]>
         ).map(([type, label]) => (

@@ -120,6 +120,7 @@ export function MenuBar(props: Props) {
         ["label", "Label"],
         ["jump", "Jump"],
         ["window", "Window"],
+        ["solve_shape_slider", "Shape Slider"],
         ["comment", "Comment"],
       ].map(([type, label]) => ({
         label,

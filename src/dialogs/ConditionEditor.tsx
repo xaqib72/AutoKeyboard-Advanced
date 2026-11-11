@@ -8,10 +8,12 @@ export function ImageRegionEditor({
   region,
   onChange,
   onSelect,
+  label = "Search only within a selected screen area",
 }: {
   region?: ImageRegion;
   onChange: (region?: ImageRegion) => void;
   onSelect?: () => void;
+  label?: string;
 }) {
   const active = Boolean(region);
   const current = region ?? { x: 0, y: 0, width: 640, height: 480 };
@@ -24,7 +26,7 @@ export function ImageRegionEditor({
           checked={active}
           onChange={(event) => onChange(event.target.checked ? current : undefined)}
         />
-        Search only within a selected screen area
+        {label}
       </label>
       {active && (
         <>

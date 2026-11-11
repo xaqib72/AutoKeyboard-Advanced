@@ -18,6 +18,7 @@ export const actionTypeLabel: Record<WorkflowAction["type"], string> = {
   jump: "Jump",
   window: "Window",
   find_image_click: "Image Click",
+  solve_shape_slider: "Shape Slider",
   comment: "Comment",
 };
 
@@ -82,6 +83,8 @@ export function actionDetails(action: WorkflowAction): string {
       return `${action.params.operation}: ${action.params.target.title ?? action.params.target.process ?? "target"}`;
     case "find_image_click":
       return action.params.templateAsset || "Choose image";
+    case "solve_shape_slider":
+      return `Shape match → slider (${action.params.sliderStartX}–${action.params.sliderEndX})`;
     case "comment":
       return action.params.text;
     default:

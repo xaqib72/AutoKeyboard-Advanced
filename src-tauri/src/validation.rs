@@ -22,6 +22,7 @@ const ACTION_TYPES: &[&str] = &[
     "jump",
     "window",
     "find_image_click",
+    "solve_shape_slider",
     "comment",
 ];
 
@@ -512,6 +513,59 @@ pub fn validate(workflow: &Workflow) -> Vec<ValidationIssue> {
                             ),
                         ));
                     }
+                }
+            }
+            "solve_shape_slider" => {
+                for key in ["sourceRegion", "targetRegion"] {
+                    let region = action.params.get(key);
+                    let width = region
+                        .and_then(|value| value.get("width"))
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    let height = region
+                        .and_then(|value| value.get("height"))
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    if width < 3 || height < 3 {
+                        issues.push(ValidationIssue::action(
+                            action,
+                            index,
+                            "INVALID_SHAPE_REGIONS",
+                            "Shape slider needs source and target areas at least 3 × 3 pixels.",
+                        ));
+                        break;
+                    }
+                }
+                let threshold = action
+                    .params
+                    .get("threshold")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0);
+                let start_x = action
+                    .params
+                    .get("sliderStartX")
+                    .and_then(Value::as_i64);
+                let end_x = action
+                    .params
+                    .get("sliderEndX")
+                    .and_then(Value::as_i64);
+                let duration = action
+                    .params
+                    .get("dragDurationMs")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0);
+                if !(0.1..=1.0).contains(&threshold)
+                    || start_x.is_none()
+                    || end_x.is_none()
+                    || start_x == end_x
+                    || !(100..=10_000).contains(&duration)
+                {
+                    issues.push(ValidationIssue::action(
+                        action,
+                        index,
+                        "INVALID_SHAPE_SLIDER",
+                        "Shape similarity must be 0.1–1, slider endpoints must differ, and drag duration must be 100–10000 ms.",
+                    ));
                 }
             }
             _ => {}

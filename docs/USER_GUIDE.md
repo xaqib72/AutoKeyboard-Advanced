@@ -33,3 +33,9 @@ Two clicks of the same mouse button within 500 ms and within 5 pixels are record
 ## Image matching
 
 The packaged vision worker launches only on the first image condition/action and communicates over local JSON lines. No images are uploaded. Matching supports multiple monitors, regions, confidence thresholds, grayscale, occurrence selection, and cancellation. OCR is an optional roadmap feature and is not part of version 1.0.
+
+## Local game shape slider
+
+Use **Shape Slider** for a local game where a movable shape must be aligned with one of several cutouts. Capture a tight **Moving shape area** around the piece, then a **Candidate target area** around the possible matches. The vision worker compares their edges at 0°, 90°, 180°, and 270° so random quarter-turn rotations can still match.
+
+Use **Get Slider Coordinates** to capture the thumb center at its starting position and again at the end of its horizontal travel. The app minimizes for these two clicks and fills in start X, end X, and Y. Set the slider start to correspond to the moving shape's position when the game round begins. The action moves the slider by the same horizontal offset as the detected target. Use a threshold around 0.45 to begin, then raise it if unrelated edges get selected or lower it if the same shape is rendered with different lighting. The game window and both captured areas must remain visible when this action runs.

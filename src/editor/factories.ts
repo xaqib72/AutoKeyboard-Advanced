@@ -130,6 +130,19 @@ export function createAction(type: ActionType): WorkflowAction {
           onTimeout: { mode: "stop" },
         },
       };
+    case "solve_shape_slider":
+      return {
+        ...base(type, "Solve shape slider puzzle"),
+        params: {
+          sourceRegion: undefined,
+          targetRegion: undefined,
+          sliderStartX: 100,
+          sliderEndX: 400,
+          sliderY: 700,
+          threshold: 0.45,
+          dragDurationMs: 700,
+        },
+      };
     case "comment":
       return { ...base(type, "Comment"), delayAfterMs: 0, params: { text: "" } };
   }
