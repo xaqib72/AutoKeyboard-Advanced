@@ -13,6 +13,10 @@ AutoKeyboard Advanced is a Windows desktop app for building and running repeatab
 
 Image matching is handled by an optional Python vision worker, started only when an image action needs it. Normal keyboard and mouse playback runs in the Rust native engine. OCR is not included in version 1.0.
 
+## Download for Windows
+
+Download the latest Windows setup installer from [GitHub Releases](https://github.com/xaqib72/AutoKeyboard-Advanced/releases/latest). The release page includes the installer and version-specific release notes.
+
 ## Run from source
 
 Requirements: Windows 10/11, Node.js 20+, Rust stable with the MSVC toolchain, and Microsoft Edge WebView2 Runtime. Python 3.11+ is needed only to rebuild or test the vision worker.
