@@ -1,0 +1,42 @@
+[
+  {
+    "file": "reference/00_main_empty_reference.png",
+    "bytes": 21255,
+    "sha256": "b95887d66bc3ebf5c8620057417e8cf8c9b0a5bf34092cc4c0946b89b0da9246"
+  },
+  {
+    "file": "reference/01_keystroke_dialog_reference.png",
+    "bytes": 25466,
+    "sha256": "655307efe8c9c548d19bfb5685656cd0a8e2274be3973b5d03e50a4aa2801a13"
+  },
+  {
+    "file": "reference/02_keystroke_dialog_reference_alt.png",
+    "bytes": 24641,
+    "sha256": "d965cb3068f499d7986545adbc16f7895dd7f687a944dfb2c2a6a99478e20dd8"
+  },
+  {
+    "file": "reference/03_mouse_dialog_reference.png",
+    "bytes": 28226,
+    "sha256": "3802f6b20e88b4f2d8264c42fe5548a0fa4065f05e747d12fb0668a193fee4af"
+  },
+  {
+    "file": "reference/04_variable_dialog_reference.png",
+    "bytes": 28105,
+    "sha256": "f3f188b961650e5f04fd59f3bf8da5898b76dffa26762379c9b557b7616ff2bb"
+  },
+  {
+    "file": "reference/05_text_dialog_reference.png",
+    "bytes": 39052,
+    "sha256": "1e58f7e52dd89e6cad22e2c46a381d43f492ceb3444e2dc3e29cc405f6bdbea9"
+  },
+  {
+    "file": "reference/06_populated_workflow_reference.png",
+    "bytes": 36480,
+    "sha256": "a59fc8051969ac7b3263de234e4cc21801882536082aa0112f5d24b8cb5f9fce"
+  },
+  {
+    "file": "reference/sample_legacy_workflow.aki",
+    "bytes": 14823,
+    "sha256": "f7709ea8219b1419084b071e5d8439d963729fd90cd6af20f4e8ab714f9a53d7"
+  }
+]

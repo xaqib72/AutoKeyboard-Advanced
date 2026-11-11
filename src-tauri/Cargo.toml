@@ -1,0 +1,47 @@
+[package]
+name = "autokeyboard-advanced"
+version = "1.0.10"
+description = "Classic condition-aware Windows desktop automation"
+authors = ["AutoKeyboard Advanced contributors"]
+edition = "2021"
+rust-version = "1.83"
+
+[lib]
+name = "autokeyboard_advanced_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.2", features = [] }
+
+[dependencies]
+async-recursion = "1.1.1"
+chrono = { version = "0.4.42", features = ["serde"] }
+image = { version = "0.25.8", default-features = false, features = ["png", "jpeg"] }
+regex = "1.11.2"
+serde = { version = "1.0.225", features = ["derive"] }
+serde_json = { version = "1.0.145", features = ["preserve_order"] }
+tauri = { version = "2.11.5", features = [] }
+tauri-plugin-dialog = "2.7.2"
+tauri-plugin-global-shortcut = "2.3.2"
+thiserror = "2.0.16"
+tokio = { version = "1.47.1", features = ["macros", "process", "io-util", "sync", "time"] }
+uuid = { version = "1.18.1", features = ["v4", "serde"] }
+xcap = "0.9.8"
+zip = { version = "6.0.0", default-features = false, features = ["deflate"] }
+
+[target.'cfg(windows)'.dependencies]
+clipboard-win = { version = "5.4.1", features = ["std"] }
+windows = { version = "0.62.2", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Threading",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging"
+] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

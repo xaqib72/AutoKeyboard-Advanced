@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "name": "Variable Timing QA Demo",
+  "repeatTimes": 1,
+  "actions": [
+    {
+      "id": "a1",
+      "type": "mouse",
+      "name": "Click Start Test",
+      "enabled": true,
+      "delayAfterMs": 50,
+      "generate": 1,
+      "params": {
+        "kind": "click",
+        "button": "left",
+        "x": 300,
+        "y": 200,
+        "coordinateSpace": "virtual_screen"
+      }
+    },
+    {
+      "id": "a2",
+      "type": "wait_condition",
+      "name": "Wait for Green Pixel",
+      "enabled": true,
+      "delayAfterMs": 0,
+      "generate": 1,
+      "params": {
+        "condition": {
+          "kind": "pixel_match",
+          "x": 500,
+          "y": 300,
+          "rgb": [
+            0,
+            200,
+            0
+          ],
+          "tolerance": 20
+        },
+        "pollIntervalMs": 100,
+        "timeoutMs": 10000,
+        "onTimeout": {
+          "mode": "stop"
+        }
+      }
+    },
+    {
+      "id": "a3",
+      "type": "text",
+      "name": "Type done",
+      "enabled": true,
+      "delayAfterMs": 50,
+      "generate": 1,
+      "params": {
+        "text": "done",
+        "method": "clipboard"
+      }
+    }
+  ]
+}

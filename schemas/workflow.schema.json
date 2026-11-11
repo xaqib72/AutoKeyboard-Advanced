@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/autokeyboard-advanced/workflow.schema.json",
+  "title": "AutoKeyboard Advanced Workflow",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "repeatTimes",
+    "actions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "name": {
+      "type": "string"
+    },
+    "repeatTimes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "enabled",
+          "delayAfterMs",
+          "generate",
+          "params"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "delayAfterMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "generate": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "params": {
+            "type": "object"
+          },
+          "guard": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "retry": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "failurePolicy": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
