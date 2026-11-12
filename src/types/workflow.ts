@@ -194,6 +194,9 @@ export type SolveShapeSliderAction = ActionBase<
     sliderY: number;
     threshold: number;
     dragDurationMs: number;
+    onFailure:
+      | { mode: "jump"; targetRow: number }
+      | { mode: "reload_retry"; reloadPoint?: { x: number; y: number }; retryDelayMs: number };
   }
 >;
 export type CommentAction = ActionBase<"comment", { text: string }>;

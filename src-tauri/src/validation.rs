@@ -500,9 +500,7 @@ pub fn validate(workflow: &Workflow) -> Vec<ValidationIssue> {
                         .pointer("/onTimeout/targetRow")
                         .and_then(Value::as_u64)
                         .and_then(|row| usize::try_from(row).ok());
-                    if !target_row
-                        .is_some_and(|row| (1..=workflow.actions.len()).contains(&row))
-                    {
+                    if !target_row.is_some_and(|row| (1..=workflow.actions.len()).contains(&row)) {
                         issues.push(ValidationIssue::action(
                             action,
                             index,
@@ -541,14 +539,8 @@ pub fn validate(workflow: &Workflow) -> Vec<ValidationIssue> {
                     .get("threshold")
                     .and_then(Value::as_f64)
                     .unwrap_or(0.0);
-                let start_x = action
-                    .params
-                    .get("sliderStartX")
-                    .and_then(Value::as_i64);
-                let end_x = action
-                    .params
-                    .get("sliderEndX")
-                    .and_then(Value::as_i64);
+                let start_x = action.params.get("sliderStartX").and_then(Value::as_i64);
+                let end_x = action.params.get("sliderEndX").and_then(Value::as_i64);
                 let duration = action
                     .params
                     .get("dragDurationMs")
@@ -566,6 +558,73 @@ pub fn validate(workflow: &Workflow) -> Vec<ValidationIssue> {
                         "INVALID_SHAPE_SLIDER",
                         "Shape similarity must be 0.1–1, slider endpoints must differ, and drag duration must be 100–10000 ms.",
                     ));
+                }
+                match action
+                    .params
+                    .pointer("/onFailure/mode")
+                    .and_then(Value::as_str)
+                {
+                    Some("jump") => {
+                        let target_row = action
+                            .params
+                            .pointer("/onFailure/targetRow")
+                            .and_then(Value::as_u64)
+                            .and_then(|row| usize::try_from(row).ok());
+                        if !target_row
+                            .is_some_and(|row| (1..=workflow.actions.len()).contains(&row))
+                        {
+                            issues.push(ValidationIssue::action(
+                                action,
+                                index,
+                                "INVALID_SHAPE_FAILURE_ROW",
+                                format!(
+                                    "Shape failure jump row must be between 1 and {}.",
+                                    workflow.actions.len()
+                                ),
+                            ));
+                        }
+                    }
+                    Some("reload_retry") => {
+                        let point = action
+                            .params
+                            .get("onFailure")
+                            .and_then(|value| value.get("reloadPoint"));
+                        let point_is_valid = point.is_some_and(|point| {
+                            let x = point.get("x").and_then(Value::as_i64);
+                            let y = point.get("y").and_then(Value::as_i64);
+                            x.is_some_and(|value| {
+                                (i32::MIN as i64..=i32::MAX as i64).contains(&value)
+                            }) && y.is_some_and(|value| {
+                                (i32::MIN as i64..=i32::MAX as i64).contains(&value)
+                            })
+                        });
+                        if !point_is_valid {
+                            issues.push(ValidationIssue::action(
+                                action,
+                                index,
+                                "MISSING_SHAPE_RELOAD_POINT",
+                                "Capture the reload button coordinates for shape retry mode.",
+                            ));
+                        }
+                        let retry_delay = action
+                            .params
+                            .pointer("/onFailure/retryDelayMs")
+                            .and_then(Value::as_u64);
+                        if !retry_delay.is_some_and(|delay| (100..=60_000).contains(&delay)) {
+                            issues.push(ValidationIssue::action(
+                                action,
+                                index,
+                                "INVALID_SHAPE_RETRY_DELAY",
+                                "Wait after reload must be between 100 and 60000 ms.",
+                            ));
+                        }
+                    }
+                    _ => issues.push(ValidationIssue::action(
+                        action,
+                        index,
+                        "MISSING_SHAPE_FAILURE_ACTION",
+                        "Choose what to do if the shape is not recognized.",
+                    )),
                 }
             }
             _ => {}

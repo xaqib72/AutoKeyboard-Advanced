@@ -333,6 +333,47 @@ export function validateWorkflow(workflow: Workflow): ValidationIssue[] {
             message:
               "Shape similarity must be 0.1–1, slider endpoints must differ, and drag duration must be 100–10000 ms.",
           });
+        const onFailure = action.params.onFailure;
+        if (!onFailure) {
+          issues.push({
+            actionId: action.id,
+            actionIndex: row,
+            code: "MISSING_SHAPE_FAILURE_ACTION",
+            message: "Choose what to do if the shape is not recognized.",
+          });
+        } else if (onFailure.mode === "jump") {
+          if (
+            !Number.isInteger(onFailure.targetRow) ||
+            onFailure.targetRow < 1 ||
+            onFailure.targetRow > workflow.actions.length
+          )
+            issues.push({
+              actionId: action.id,
+              actionIndex: row,
+              code: "INVALID_SHAPE_FAILURE_ROW",
+              message: `Shape failure jump row must be between 1 and ${workflow.actions.length}.`,
+            });
+        } else {
+          const point = onFailure.reloadPoint;
+          if (!point || !Number.isInteger(point.x) || !Number.isInteger(point.y))
+            issues.push({
+              actionId: action.id,
+              actionIndex: row,
+              code: "MISSING_SHAPE_RELOAD_POINT",
+              message: "Capture the reload button coordinates for shape retry mode.",
+            });
+          if (
+            !Number.isInteger(onFailure.retryDelayMs) ||
+            onFailure.retryDelayMs < 100 ||
+            onFailure.retryDelayMs > 60000
+          )
+            issues.push({
+              actionId: action.id,
+              actionIndex: row,
+              code: "INVALID_SHAPE_RETRY_DELAY",
+              message: "Wait after reload must be between 100 and 60000 ms.",
+            });
+        }
         break;
       }
       default:

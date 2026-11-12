@@ -141,6 +141,7 @@ export function createAction(type: ActionType): WorkflowAction {
           sliderY: 700,
           threshold: 0.45,
           dragDurationMs: 700,
+          onFailure: { mode: "reload_retry", retryDelayMs: 1200 },
         },
       };
     case "comment":

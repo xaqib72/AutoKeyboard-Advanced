@@ -100,10 +100,18 @@ impl VisionWorker {
                 "Shape similarity must be between 0.1 and 1.",
             ));
         }
-        let source_right = source.0.saturating_add(source.2.min(i32::MAX as u32) as i32);
-        let source_bottom = source.1.saturating_add(source.3.min(i32::MAX as u32) as i32);
-        let target_right = target.0.saturating_add(target.2.min(i32::MAX as u32) as i32);
-        let target_bottom = target.1.saturating_add(target.3.min(i32::MAX as u32) as i32);
+        let source_right = source
+            .0
+            .saturating_add(source.2.min(i32::MAX as u32) as i32);
+        let source_bottom = source
+            .1
+            .saturating_add(source.3.min(i32::MAX as u32) as i32);
+        let target_right = target
+            .0
+            .saturating_add(target.2.min(i32::MAX as u32) as i32);
+        let target_bottom = target
+            .1
+            .saturating_add(target.3.min(i32::MAX as u32) as i32);
         let left = source.0.min(target.0);
         let top = source.1.min(target.1);
         let right = source_right.max(target_right);
@@ -117,8 +125,10 @@ impl VisionWorker {
         let capture_region = (
             left,
             top,
-            u32::try_from(right - left).map_err(|_| AppError::coded("INVALID_REGION", "Capture area is too wide."))?,
-            u32::try_from(bottom - top).map_err(|_| AppError::coded("INVALID_REGION", "Capture area is too tall."))?,
+            u32::try_from(right - left)
+                .map_err(|_| AppError::coded("INVALID_REGION", "Capture area is too wide."))?,
+            u32::try_from(bottom - top)
+                .map_err(|_| AppError::coded("INVALID_REGION", "Capture area is too tall."))?,
         );
         let capture = tokio::task::spawn_blocking(move || capture_screen(Some(capture_region)))
             .await

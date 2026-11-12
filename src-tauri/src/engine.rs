@@ -106,6 +106,7 @@ struct RuntimeData {
 enum ExecOutcome {
     Next,
     Jump(usize),
+    FailureJump(usize),
 }
 
 pub async fn execute(
@@ -242,15 +243,37 @@ async fn execute_inner(
                 }
             };
             let duration = action_started.elapsed().as_millis();
-            emit_action(app, control, action, "completed", 1, None);
+            let failure_note = match &outcome {
+                ExecOutcome::FailureJump(target) => Some(format!(
+                    "Shape was not recognized; jumping to row {}.",
+                    target + 1
+                )),
+                _ => None,
+            };
+            let failure_error = failure_note
+                .as_ref()
+                .map(|message| AppError::coded("SHAPE_NOT_FOUND", message.clone()));
+            let action_state = if failure_note.is_some() {
+                "skipped"
+            } else {
+                "completed"
+            };
+            emit_action(
+                app,
+                control,
+                action,
+                action_state,
+                1,
+                failure_note.as_deref(),
+            );
             emit_log(
                 app,
                 control,
                 action,
                 pointer + 1,
-                "completed",
+                action_state,
                 duration,
-                None,
+                failure_error.as_ref(),
                 0,
             );
             if action.delay_after_ms > 0 {
@@ -259,6 +282,7 @@ async fn execute_inner(
             pointer = match outcome {
                 ExecOutcome::Next => pointer + 1,
                 ExecOutcome::Jump(target) => target,
+                ExecOutcome::FailureJump(target) => target,
             };
         }
     }
@@ -445,6 +469,21 @@ async fn execute_flow_action(
                             )
                         })?;
                     Ok(ExecOutcome::Jump(target_row - 1))
+                }
+                Err(error) if error.to_string().starts_with("SHAPE_FAILURE_JUMP:") => {
+                    let target_row = error
+                        .to_string()
+                        .trim_start_matches("SHAPE_FAILURE_JUMP:")
+                        .parse::<usize>()
+                        .ok()
+                        .filter(|row| (1..=workflow.actions.len()).contains(row))
+                        .ok_or_else(|| {
+                            AppError::coded(
+                                "INVALID_SHAPE_FAILURE_ROW",
+                                "Shape failure jump row must identify a workflow row.",
+                            )
+                        })?;
+                    Ok(ExecOutcome::FailureJump(target_row - 1))
                 }
                 Err(error) => Err(error),
             }
@@ -765,19 +804,97 @@ async fn execute_basic(
                 let target = named_region(&action.params, "targetRegion").ok_or_else(|| {
                     AppError::coded("INVALID_REGION", "Select the candidate target area first.")
                 })?;
-                control.wait_ready().await?;
-                let result = vision
-                    .match_rotated_shape(source, target, f64_param(action, "threshold", 0.45))
-                    .await?;
-                if !result.found {
-                    return Err(AppError::coded(
-                        "SHAPE_NOT_FOUND",
-                        format!(
-                            "No matching shape was found (best similarity {:.1}%).",
-                            result.confidence * 100.0
-                        ),
-                    ));
-                }
+                let mut attempt = 1u32;
+                let result = loop {
+                    control.wait_ready().await?;
+                    let result = vision
+                        .match_rotated_shape(source, target, f64_param(action, "threshold", 0.45))
+                        .await?;
+                    if result.found {
+                        break result;
+                    }
+
+                    let on_failure = action.params.get("onFailure").ok_or_else(|| {
+                        AppError::coded(
+                            "INVALID_SHAPE_FAILURE_ACTION",
+                            "Choose what to do when shape recognition fails.",
+                        )
+                    })?;
+                    match on_failure.get("mode").and_then(Value::as_str) {
+                        Some("jump") => {
+                            let target_row = on_failure
+                                .get("targetRow")
+                                .and_then(Value::as_u64)
+                                .filter(|row| *row > 0)
+                                .ok_or_else(|| {
+                                    AppError::coded(
+                                        "INVALID_SHAPE_FAILURE_ROW",
+                                        "Choose a valid row to jump to after shape recognition fails.",
+                                    )
+                                })?;
+                            return Err(AppError::coded(
+                                "SHAPE_FAILURE_JUMP",
+                                target_row.to_string(),
+                            ));
+                        }
+                        Some("reload_retry") => {
+                            let reload_point = on_failure.get("reloadPoint").ok_or_else(|| {
+                                AppError::coded(
+                                    "MISSING_SHAPE_RELOAD_POINT",
+                                    "Capture the game's reload button coordinates first.",
+                                )
+                            })?;
+                            let reload_x = reload_point
+                                .get("x")
+                                .and_then(Value::as_i64)
+                                .and_then(|value| i32::try_from(value).ok())
+                                .ok_or_else(|| {
+                                    AppError::coded(
+                                        "INVALID_SHAPE_RELOAD_POINT",
+                                        "Reload X coordinate is invalid.",
+                                    )
+                                })?;
+                            let reload_y = reload_point
+                                .get("y")
+                                .and_then(Value::as_i64)
+                                .and_then(|value| i32::try_from(value).ok())
+                                .ok_or_else(|| {
+                                    AppError::coded(
+                                        "INVALID_SHAPE_RELOAD_POINT",
+                                        "Reload Y coordinate is invalid.",
+                                    )
+                                })?;
+                            let point = native::resolve_coordinate(
+                                reload_x,
+                                reload_y,
+                                "virtual_screen",
+                                "",
+                            )?;
+                            let retry_delay = on_failure
+                                .get("retryDelayMs")
+                                .and_then(Value::as_u64)
+                                .unwrap_or(1200)
+                                .clamp(100, 60_000);
+                            attempt = attempt.saturating_add(1);
+                            emit_action(
+                                app,
+                                control,
+                                action,
+                                "running",
+                                attempt,
+                                Some("No shape match; clicking reload and retrying."),
+                            );
+                            input.mouse(point.0, point.1, "left", "click", 1)?;
+                            control.sleep(retry_delay).await?;
+                        }
+                        _ => {
+                            return Err(AppError::coded(
+                                "INVALID_SHAPE_FAILURE_ACTION",
+                                "Choose jump-to-row or reload-and-retry for shape recognition failures.",
+                            ));
+                        }
+                    }
+                };
                 let source_center_x = source.0 + source.2 as i32 / 2;
                 let target_center_x = result.x + result.width as i32 / 2;
                 let start_x = i64_param(action, "sliderStartX", 0) as i32;

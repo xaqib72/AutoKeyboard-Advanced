@@ -30,6 +30,8 @@ export function AdvancedActionDialog({
     }
     if (next.type === "find_image_click" && !next.params.onTimeout)
       next.params.onTimeout = { mode: "stop" };
+    if (next.type === "solve_shape_slider" && !next.params.onFailure)
+      next.params.onFailure = { mode: "reload_retry", retryDelayMs: 1200 };
     return next;
   });
   const [message, setMessage] = useState("");
@@ -136,6 +138,29 @@ export function AdvancedActionDialog({
         },
       } as Partial<AdvancedAction>);
       setMessage(`Captured slider: start X ${points.startX}, end X ${points.endX}, Y ${points.startY}`);
+    } catch (error) {
+      setMessage(String(error));
+    }
+  };
+  const captureReloadPoint = async () => {
+    if (!isTauri()) {
+      setMessage("Reload coordinate capture is available in the desktop app.");
+      return;
+    }
+    if (action.type !== "solve_shape_slider") return;
+    setMessage("Click the center of the game's reload button. Press Esc to cancel.");
+    try {
+      const point = await backend.captureCoordinate();
+      const delayMs = action.params.onFailure.mode === "reload_retry"
+        ? action.params.onFailure.retryDelayMs
+        : 1200;
+      update({
+        params: {
+          ...action.params,
+          onFailure: { mode: "reload_retry", reloadPoint: point, retryDelayMs: delayMs },
+        },
+      } as Partial<AdvancedAction>);
+      setMessage(`Captured reload button at X=${point.x}, Y=${point.y}`);
     } catch (error) {
       setMessage(String(error));
     }
@@ -606,8 +631,91 @@ export function AdvancedActionDialog({
                 onChange={(e) => update({ params: { ...action.params, dragDurationMs: Number(e.target.value) } } as Partial<AdvancedAction>)}
               />
             </Field>
+            <label>
+              If shape recognition fails
+              <Select
+                value={action.params.onFailure.mode}
+                onChange={(event) => {
+                  const mode = event.target.value;
+                  const onFailure = action.params.onFailure;
+                  update({
+                    params: {
+                      ...action.params,
+                      onFailure:
+                        mode === "jump"
+                          ? {
+                              mode: "jump",
+                              targetRow:
+                                onFailure.mode === "jump" ? onFailure.targetRow : 1,
+                            }
+                          : {
+                              mode: "reload_retry",
+                              reloadPoint:
+                                onFailure.mode === "reload_retry"
+                                  ? onFailure.reloadPoint
+                                  : undefined,
+                              retryDelayMs:
+                                onFailure.mode === "reload_retry"
+                                  ? onFailure.retryDelayMs
+                                  : 1200,
+                            },
+                    },
+                  } as Partial<AdvancedAction>);
+                }}
+              >
+                <option value="jump">Jump to a row</option>
+                <option value="reload_retry">Click reload and retry until recognized</option>
+              </Select>
+            </label>
+            {action.params.onFailure.mode === "jump" ? (
+              <Field label="Jump to row:">
+                <NumberInput
+                  min={1}
+                  max={workflowActions.length}
+                  value={action.params.onFailure.targetRow}
+                  onChange={(event) =>
+                    update({
+                      params: {
+                        ...action.params,
+                        onFailure: {
+                          ...action.params.onFailure,
+                          targetRow: Number(event.target.value),
+                        },
+                      },
+                    } as Partial<AdvancedAction>)}
+                />
+              </Field>
+            ) : (
+              <>
+                <button type="button" onClick={() => void captureReloadPoint()}>
+                  Get Reload Coordinates
+                </button>
+                <p className="hint">
+                  {action.params.onFailure.reloadPoint
+                    ? `Reload button: X=${action.params.onFailure.reloadPoint.x}, Y=${action.params.onFailure.reloadPoint.y}`
+                    : "Capture the center of the game's reload button before running this workflow."}
+                </p>
+                <Field label="Wait after reload (ms):">
+                  <NumberInput
+                    min={100}
+                    max={60000}
+                    value={action.params.onFailure.retryDelayMs}
+                    onChange={(event) =>
+                      update({
+                        params: {
+                          ...action.params,
+                          onFailure: {
+                            ...action.params.onFailure,
+                            retryDelayMs: Number(event.target.value),
+                          },
+                        },
+                      } as Partial<AdvancedAction>)}
+                  />
+                </Field>
+              </>
+            )}
             <p className="hint">
-              The captured game areas must be visible on the same screen when this action runs.
+              Reload mode keeps retrying until a shape is recognized. Use the emergency stop to end the workflow manually.
             </p>
           </>
         )}
